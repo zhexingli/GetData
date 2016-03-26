@@ -9,6 +9,7 @@
 #
 # Author        Date        Comments
 # Zhexing Li    2016-03-23  Initial Version
+# Zhexing Li    2016-03-25  Added lock file feature when the script is running
 #
 ##################################################################################
 
@@ -22,6 +23,7 @@ import requests
 import datetime
 import re
 import shutil
+import sys
 
 
 ##################################################################################
@@ -84,8 +86,18 @@ def Output_HTML():
 
     with open(download_path + '/DownloadLog.txt','a') as outfile:
         outfile.write("# Time used updated in HTML file.\n")
+        outfile.write("# Lock file deleted. \n")
         outfile.write("# GetData completed. \n")
-        
+
+    # Delete the lock file in the log directory.
+    
+    for files in os.listdir(download_path):
+        if files.endswith(".lock"):
+            os.remove(download_path + '/' + files)
+        else:
+            pass
+
+
 ##################################################################################
 #
 # FUNCTION: GET_DATA
@@ -122,7 +134,16 @@ def Get_Data():
 
     # Get current time from computer.
     
-    time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M')
+    time = datetime.datetime.utcnow().strftime("%Y-%m-%d" + "T" + "%H:%M:%S")
+
+    # Check if there's a lock file in the directory, if there's not, create one and continue
+    # the rest of the code; if there's is one, stop the rest of the code.
+
+    if os.path.exists(path2 + '/GetData.lock'):
+        sys.exit(0)
+    else:
+        with open(path2 + '/GetData.lock','w') as lockfile:
+            lockfile.write(time)
 
     # Creat and open files for logging downloaded frame names, their obs id and,
     # their total observation time, and move it to desired directory; if already
@@ -131,11 +152,12 @@ def Get_Data():
     if os.path.exists(path2 + '/DownloadLog.txt'):
         with open(path2 + '/DownloadLog.txt','a') as outfile:
             outfile.write("\n" + "\n" + "# " + time + "\n" + "\n")
+            outfile.write("# Lock file created." + "\n")
     else:
         with open(path2 + '/DownloadLog.txt','w') as outfile:
             outfile.write("##### GetData Download Logfile #####" + "\n" + "\n")
             outfile.write("# " + time + "\n" + "\n")
-            outfile.close()
+            outfile.write("# Lock file created." + "\n")
     
     if os.path.exists(path3 + '/TimeLog.txt'):
         with open(path3 + '/TimeLog.txt', 'a') as outfile:
@@ -148,7 +170,6 @@ def Get_Data():
             outfile.write("# " + time + "\n")
             outfile.write("# Group Name" + "     " + "File Name" + "     " +
                           "Total Observation Time" + "\n")
-            outfile.close()
 
     # Fetching data type from the configuraton file input.
     
@@ -367,6 +388,7 @@ def Get_Data():
 
     with open(path2 + '/DownloadLog.txt','a') as outfile:
         outfile.write("# Frames moved to output directory, ready for use.\n")
+
 
 ##################################################################################
 #
