@@ -31,7 +31,7 @@ import sys
 # Get current time from computer.
     
 time = datetime.datetime.utcnow().strftime("%Y-%m-%d" + "T" + "%H:%M:%S")
-time0 = datetime.datetime.utcnow().strftime("%Y-%m-%d%H:%M")
+time0 = datetime.datetime.utcnow().strftime("%Y-%m-%d")
 
 
 ##################################################################################
