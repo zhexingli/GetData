@@ -10,12 +10,15 @@
 # Author        Date        Comments
 # Zhexing Li    2016-03-23  Initial Version
 # Zhexing Li    2016-03-25  Added lock file feature when the script is running
+# Zhexing Li    2016-03-28  Changed the log feature where the download log is to be
+#                           ouput everyday.
 #
 ##################################################################################
 
 
 #######################################
 # Import necessary modules
+
 import os
 import numpy as np
 from astropy.io import fits
@@ -24,6 +27,11 @@ import datetime
 import re
 import shutil
 import sys
+
+# Get current time from computer.
+    
+time = datetime.datetime.utcnow().strftime("%Y-%m-%d" + "T" + "%H:%M:%S")
+time0 = datetime.datetime.utcnow().strftime("%Y-%m-%d%H:%M")
 
 
 ##################################################################################
@@ -45,15 +53,18 @@ def Output_HTML():
     
     info = Get_Config()
     
-    timelog_path = info['timelog_directory']
-    download_path = info['downloadlog_directory']
+    tpath = info['timelog_directory']
+    dpath = info['downloadlog_directory']
 
+    tlog = tpath + '/TimeLog.txt'
+    dlog = dpath + '/DownloadLog' + '_' + time0 + '.txt'
+    
     time = []
-
-    with open(download_path + '/DownloadLog.txt','a') as outfile:
+    
+    with open(dlog,'a') as outfile:
         outfile.write("# Calculating total time used from all frames.\n")
         
-    with open(timelog_path + '/TimeLog.txt','r') as infile:
+    with open(tlog,'r') as infile:
         for line in infile:
             if not line.startswith('#'):
                 if not line.startswith('\n'):
@@ -66,34 +77,34 @@ def Output_HTML():
     
     total_time = str(np.around((np.sum(time)/3600.0),decimals = 2))
 
-    with open(download_path + '/DownloadLog.txt','a') as outfile:
+    with open(dlog,'a') as outfile:
         outfile.write("# Total time calculation completed.\n")
         
     # Output the result to a HTML file.
     
-    if os.path.exists(timelog_path + '/Time.html'):
-        with open(timelog_path + '/Time.html','w') as outfile:
+    if os.path.exists(tpath + '/Time.html'):
+        with open(tpath + '/Time.html','w') as outfile:
             outfile.write("<html><body>")
             outfile.write("<strong>Total Time Used/Allocated: %s/3110hrs</strong>"
                           % total_time)
             outfile.write("</body></html>")
     else:
-        with open(timelog_path + '/Time.html','a') as outfile:
+        with open(tpath + '/Time.html','a') as outfile:
             outfile.write("<html><body>")
             outfile.write("<strong>Total Time Used/Allocated: %s/3110hrs</strong>"
                           % total_time)
             outfile.write("</body></html>")
 
-    with open(download_path + '/DownloadLog.txt','a') as outfile:
+    with open(dlog,'a') as outfile:
         outfile.write("# Time used updated in HTML file.\n")
         outfile.write("# Lock file deleted. \n")
         outfile.write("# GetData completed. \n")
 
     # Delete the lock file in the log directory.
     
-    for files in os.listdir(download_path):
+    for files in os.listdir(dpath):
         if files.endswith(".lock"):
-            os.remove(download_path + '/' + files)
+            os.remove(dpath + '/' + files)
         else:
             pass
 
@@ -132,10 +143,6 @@ def Get_Data():
     path4 = info['finalframe_directory']
     data_type = ''
 
-    # Get current time from computer.
-    
-    time = datetime.datetime.utcnow().strftime("%Y-%m-%d" + "T" + "%H:%M:%S")
-
     # Check if there's a lock file in the directory, if there's not, create one and continue
     # the rest of the code; if there's is one, stop the rest of the code.
 
@@ -148,26 +155,25 @@ def Get_Data():
     # Creat and open files for logging downloaded frame names, their obs id and,
     # their total observation time, and move it to desired directory; if already
     # existed, append current time to file.
+
+    dlog = path2 + '/DownloadLog' + '_' + time0 + '.txt'
+    tlog = path3 + '/TimeLog.txt'
     
-    if os.path.exists(path2 + '/DownloadLog.txt'):
-        with open(path2 + '/DownloadLog.txt','a') as outfile:
+    if os.path.exists(dlog):
+        with open(dlog,'a') as outfile:
             outfile.write("\n" + "\n" + "# " + time + "\n" + "\n")
             outfile.write("# Lock file created." + "\n")
     else:
-        with open(path2 + '/DownloadLog.txt','w') as outfile:
+        with open(dlog,'w') as outfile:
             outfile.write("##### GetData Download Logfile #####" + "\n" + "\n")
             outfile.write("# " + time + "\n" + "\n")
             outfile.write("# Lock file created." + "\n")
     
-    if os.path.exists(path3 + '/TimeLog.txt'):
-        with open(path3 + '/TimeLog.txt', 'a') as outfile:
-            outfile.write("\n" + "\n" + "# " + time + "\n")
-            outfile.write("# Group Name" + "     " + "File Name" + "     " +
-                          "Total Observation Time" + "\n")
+    if os.path.exists(tlog):
+        pass
     else:
-        with open(path3 + '/TimeLog.txt','w') as outfile:
+        with open(tlog,'w') as outfile:
             outfile.write("##### GetData Time Allocation Logfile #####" + "\n" + "\n")
-            outfile.write("# " + time + "\n")
             outfile.write("# Group Name" + "     " + "File Name" + "     " +
                           "Total Observation Time" + "\n")
 
@@ -183,11 +189,19 @@ def Get_Data():
         rlevel = '90'
         data_type = '.fz'
     else:
-        with open(path2 + '/DownloadLog.txt','a') as outfile:
+        with open(dlog,'a') as outfile:
             outfile.write("# Unknown data type from the configuration file. \n")
+
+    # Cleaning frame directory to remove unexpected files in it.
+
+    for files in os.listdir(path1):
+        if files.endswith(data_type):
+            os.remove(path1 + '/' + files)
+        else:
+            pass
     
     # Make an authenticated request to the archive.
-    with open(path2 + '/DownloadLog.txt','a') as outfile:
+    with open(dlog,'a') as outfile:
         outfile.write("# Log in to LCOGT archive..." + "\n")
     
     response = requests.post(archive + api_token,data =
@@ -198,7 +212,7 @@ def Get_Data():
     # Download desired data from the archive, skip those which have already been
     # downloaded.
 
-    with open(path2 + '/DownloadLog.txt','a') as outfile:
+    with open(dlog,'a') as outfile:
         outfile.write("# Log in successful, downloading requested frames..." + "\n")
     
     response = requests.get(archive + api_frames + '?start=' + date_start + '&end='
@@ -207,15 +221,15 @@ def Get_Data():
 
     frames = response['results']
     for frame in frames:
-        log = open(path2 + '/DownloadLog.txt', 'r')
+        log = open(tlog, 'r')
         num = []
         try:
             for line in log:
                 if not line.startswith('#'):
                     if not line.startswith('\n'):
                         col = line.split()
-                        if col[0] == frame['filename']:
-                            num.append(col[0])
+                        if col[1] == frame['filename']:
+                            num.append(col[1])
                             break
                         else:
                             pass
@@ -227,24 +241,24 @@ def Get_Data():
         if len(num) == 0:
             with open(path1 + '/' + frame['filename'],'wb') as f:      
                 f.write(requests.get(frame['url']).content)
-            with open(path2 + '/DownloadLog.txt','a') as outfile:
+            with open(dlog,'a') as outfile:
                 outfile.write(str(frame['filename']) + " successfully downloaded." +
                               "\n")
 
         # Skip frames that have already been downloaded.
         
         else:
-            with open(path2 + '/DownloadLog.txt','a') as outfile:
+            with open(dlog,'a') as outfile:
                 outfile.write("# Skipping " + str(frame['filename']) + ", already "
                               + "exists." + "\n")
         
-    with open(path2 + '/DownloadLog.txt','a') as outfile:
+    with open(dlog,'a') as outfile:
         outfile.write("# All frames are downloaded." + "\n")
 
     # Go through each fits file in the directory to get information from the header
     # and write info to the logs; if already done so for some frames, skip them.
 
-    with open(path2 + '/DownloadLog.txt','a') as outfile:
+    with open(dlog,'a') as outfile:
         outfile.write("# Calculating time used for each frame..." + "\n")
     
     for files in os.listdir(path1):
@@ -253,7 +267,7 @@ def Get_Data():
             file_name = []
             obstime = []
         
-            log = open(path3 + '/TimeLog.txt','r')
+            log = open(tlog,'r')
             try:
                 for line in log:
                     if not line.startswith('#'):
@@ -275,7 +289,7 @@ def Get_Data():
                 exptime = hdulist[0].header['EXPTIME']
                 instru = hdulist[0].header['INSTRUME']
 
-                with open(path3 + '/TimeLog.txt','r') as infile:
+                with open(tlog,'r') as infile:
                     for line in infile:
                         if not line.startswith('#'):
                             if not line.startswith('\n'):
@@ -319,11 +333,11 @@ def Get_Data():
                 
                 if len(obstime) == 1 and len(group_name) == 0:
 
-                    with open(path2 + '/DownloadLog.txt','a') as outfile:
+                    with open(dlog,'a') as outfile:
                         outfile.write("# Time calculated for new frame " + str(files) +
                                       "." + "\n")
                     
-                    with open(path3 + '/TimeLog.txt', 'a') as outfile:
+                    with open(tlog, 'a') as outfile:
                         outfile.write(str(group) + "     " + str(files) + "     "
                                       + str(obstime[0]) + "\n")
 
@@ -332,12 +346,12 @@ def Get_Data():
                 
                 elif len(obstime) == 1 and len(group_name) == 1:
 
-                    with open(path2 + '/DownloadLog.txt','a') as outfile:
+                    with open(dlog,'a') as outfile:
                         outfile.write("# Time calculated for new frame " + str(files) +
                                       "." + "\n")
                     
-                    temp = open(path2 + '/temp','wb')
-                    with open (path3 + '/TimeLog.txt','r') as f:
+                    temp = open(path3 + '/temp','wb')
+                    with open (tlog,'r') as f:
                         a = 0
                         for line in f:
                             if not line.startswith('#'):
@@ -355,13 +369,13 @@ def Get_Data():
                                         pass
                             temp.write(line)
                     temp.close()
-                    shutil.move(path2 + '/temp',path2 + '/TimeLog.txt')
+                    shutil.move(path2 + '/temp',tlog)
 
                 # Append comments to the log file for frames that have unknown class
                 # of instrument.
                 
                 else:
-                    with open(path2 + '/DownloadLog.txt','a') as outfile:
+                    with open(dlog,'a') as outfile:
                         outfile.write("# Unknown class of instrument for frame " +
                                       str(files) + ".\n")
             
@@ -369,13 +383,13 @@ def Get_Data():
             # calculated.
             
             else:
-                with open(path2 + '/DownloadLog.txt','a') as outfile:
+                with open(dlog,'a') as outfile:
                     outfile.write("# Time already calculated for " + str(files) +
                                   "." + "\n")
         else:
             pass
 
-    with open(path2 + '/DownloadLog.txt','a') as outfile:
+    with open(dlog,'a') as outfile:
         outfile.write("# Time calculation for each frame completed." + "\n")
 
     # Move all frames to output directory and ready for use by other programs.
@@ -386,7 +400,7 @@ def Get_Data():
         else:
             pass
 
-    with open(path2 + '/DownloadLog.txt','a') as outfile:
+    with open(dlog,'a') as outfile:
         outfile.write("# Frames moved to output directory, ready for use.\n")
 
 
