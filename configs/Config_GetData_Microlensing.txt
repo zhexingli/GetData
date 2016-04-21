@@ -1,0 +1,23 @@
+# If need to change parameters, format it the way exactly the same as it is now: slashes at the end of web url and at the start of directory path, no slashes 
+# at the end of directory paths, all caps for proposal name. If there're multiple proposal IDs, separate them with comma; same for 1m0 and 2m0 total 
+# available observation times. If there's no 2m0 observation time, simply type NONE as its input. Reduction level (rlevel) choices are raw/quicklook/reduced, 
+# all in lower case, and the date should be in the current format (YYYY-MM-DD). End date should be the last date that one needs data from plus one more day 
+# (i.e. if the last date one seeks data from is 2016-01-01, date_end should be 2016-01-02). Frame directory is the directory in which all the data processing 
+# take place, and final frame directory is the directory which all the frames will be moved to once they are done time calculation and are ready for use by 
+# other programs.
+
+archive				https://archive-api.lcogt.net/
+api_token			api-token-auth/
+api_frames			frames/
+username			
+password			
+proposal			KEY2014A-004,LCO2016A-006
+total_time(1m0)(hrs)		2552.00,200.00
+total_time(2m0)(hrs)		100.00,NONE
+date_start			2016-04-17
+date_end			2016-04-19
+rlevel				quicklook
+frame_directory			/science/robonet/rob/OfflineProc/zli/GoodData/GetData/Frames
+downloadlog_directory		/science/robonet/rob/OfflineProc/zli/GoodData/GetData/Logs
+timelog_directory		/science/robonet/rob/OfflineProc/zli/GoodData/GetData/Logs
+finalframe_directory		/science/robonet/rob/OfflineProc/zli/GoodData/GetData/Ready
