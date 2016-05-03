@@ -15,8 +15,11 @@
 # Zhexing Li    2016-04-20  Added a feature where users are now able to download
 #                           frames from more than one proposal IDs.
 # Zhexing Li    2016-04-20  Improved total time calculation where it can distinguish
-#                           different telescop aperatures and calculates times
+#                           different telescope aperatures and calculates times
 #                           separately.
+# Zhexing Li    2016-05-02  Added a feature where users are now able to specify in
+#                           the config file which types of file to be downloaded
+#                           (now only expose or catalog or both).
 #
 ##################################################################################
 
@@ -36,7 +39,7 @@ import sys
 # Get current time from computer.
     
 time = datetime.datetime.utcnow().strftime("%Y-%m-%d" + "T" + "%H:%M:%S")
-time0 = datetime.datetime.utcnow().strftime("%Y-%m-%d-%H:%M")
+time0 = datetime.datetime.utcnow().strftime("%Y-%m-%d")
 
 
 ##################################################################################
@@ -213,6 +216,7 @@ def Get_Data(pro_id):
     date_start = info['date_start']
     date_end = info['date_end']
     rlevel = info['rlevel']
+    obstype = info['obstype']
     path1 = info['frame_directory']
     path2 = info['downloadlog_directory']
     path3 = info['timelog_directory']
@@ -233,7 +237,15 @@ def Get_Data(pro_id):
     # existed, append current time to file.
 
     dlog = path2 + '/DownloadLog_' + time0 + '.txt'
+    clog = path2 + '/Catalog_' + proposal + '.txt'
     tlog = path3 + '/TimeLog_' + proposal + '.txt'
+
+    if os.path.exists(clog):
+        pass
+    else:
+        with open(clog,'w') as outfile:
+            outfile.write("##### GetData Catalog Logfile #####" + "\n" + "\n")
+            outfile.write("# File Name" + "\n")
     
     if os.path.exists(dlog):
         with open(dlog,'a') as outfile:
@@ -289,46 +301,88 @@ def Get_Data(pro_id):
     # Download desired data from the archive, skip those which have already been
     # downloaded.
 
-    with open(dlog,'a') as outfile:
-        outfile.write("Log in successful, downloading requested frames for proposal "
-                       + proposal + "..." + "\n")
-    
-    response = requests.get(archive + api_frames + '?start=' + date_start + '&end='
-                            + date_end + '&RLEVEL=' + rlevel + '&PROPID=' + proposal,
-                            headers = headers).json()
+    type_list = []
 
-    frames = response['results']
-    for frame in frames:
-        log = open(tlog, 'r')
-        num = []
-        try:
-            for line in log:
-                if not line.startswith('#'):
-                    if not line.startswith('\n'):
-                        col = line.split()
-                        if col[1] == frame['filename']:
-                            num.append(col[1])
-                            break
-                        else:
-                            pass
-        finally:
-            log.close()
+    if ',' in obstype:
+        type_list = obstype.split(',')
+    else:
+        type_list.append(obstype)
+
+    for items in type_list:
+        with open(dlog,'a') as outfile:
+            outfile.write("Log in successful, downloading requested frames for proposal "
+                           + proposal + "..." + "\n")
+    
+        response = requests.get(archive + api_frames + '?start=' + date_start + '&end='
+                                + date_end + '&RLEVEL=' + rlevel + '&PROPID=' + proposal
+                                + '&OBSTYPE=' + items, headers = headers).json()
+        
+        frames = response['results']
+        for frame in frames:
+            if frame['filename'].endswith('cat' + data_type):
+                log = open(clog, 'r')
+                num = []
+                try:
+                    for line in log:
+                        if not line.startswith('#'):
+                            if not line.startswith('\n'):
+                                col = line.split()
+                                if col[0] == frame['filename']:
+                                    num.append(col[0])
+                                    break
+                                else:
+                                    pass
+                finally:
+                    log.close()
 
         # Download frames that haven't been downloaded yet.
         
-        if len(num) == 0:
-            with open(path1 + '/' + frame['filename'],'wb') as f:      
-                f.write(requests.get(frame['url']).content)
-            with open(dlog,'a') as outfile:
-                outfile.write(str(frame['filename']) + " successfully downloaded." +
-                              "\n")
+                if len(num) == 0:
+                    with open(path1 + '/' + frame['filename'],'wb') as f:      
+                        f.write(requests.get(frame['url']).content)
+                    with open(dlog,'a') as outfile:
+                        outfile.write(str(frame['filename']) + " successfully downloaded." +
+                                      "\n")
 
         # Skip frames that have already been downloaded.
         
-        else:
-            with open(dlog,'a') as outfile:
-                outfile.write("Skipping " + str(frame['filename']) + ", already " +
-                              "exists." + "\n")
+                else:
+                    with open(dlog,'a') as outfile:
+                        outfile.write("Skipping " + str(frame['filename']) + ", already " +
+                                      "exists." + "\n")
+
+            elif frame['filename'].endswith(data_type):
+                if not frame['filename'].endswith('cat' + data_type):
+                    log = open(tlog, 'r')
+                    num = []
+                    try:
+                        for line in log:
+                            if not line.startswith('#'):
+                                if not line.startswith('\n'):
+                                    col = line.split()
+                                    if col[1] == frame['filename']:
+                                        num.append(col[1])
+                                        break
+                                    else:
+                                        pass
+                    finally:
+                        log.close()
+
+        # Download frames that haven't been downloaded yet.
+        
+                    if len(num) == 0:
+                        with open(path1 + '/' + frame['filename'],'wb') as f:      
+                            f.write(requests.get(frame['url']).content)
+                        with open(dlog,'a') as outfile:
+                            outfile.write(str(frame['filename']) + " successfully downloaded." +
+                                          "\n")
+
+        # Skip frames that have already been downloaded.
+        
+                    else:
+                        with open(dlog,'a') as outfile:
+                            outfile.write("Skipping " + str(frame['filename']) + ", already " +
+                                          "exists." + "\n")
         
     with open(dlog,'a') as outfile:
         outfile.write("All frames are downloaded." + "\n")
@@ -338,143 +392,149 @@ def Get_Data(pro_id):
 
     with open(dlog,'a') as outfile:
         outfile.write("Calculating time used for each frame..." + "\n")
-    
+
+    for files in os.listdir(path1):
+        if files.endswith('cat' + data_type):
+            with open(clog,'a') as outfile:
+                outfile.write(str(files) + "\n")
+                
     for files in os.listdir(path1):
         if files.endswith(data_type):
-            group_name = []
-            file_name = []
-            obstime = []
+            if not files.endswith('cat' + data_type):
+                group_name = []
+                file_name = []
+                obstime = []
         
-            log = open(tlog,'r')
-            try:
-                for line in log:
-                    if not line.startswith('#'):
-                        if not line.startswith('\n'):
-                            col = line.split()
-                            if  col[1] == files:
-                                file_name.append(col[1])
-                                break
-                            else:
-                                pass
-            finally:
-                log.close()
-                
-            # Calculate time for file that hasn't been calculated before.
-            
-            if len(file_name) == 0:
-                hdulist = fits.open(path1 + '/' + files)
-                group = hdulist[0].header['GROUPID']
-                exptime = hdulist[0].header['EXPTIME']
-                instru = hdulist[0].header['INSTRUME']
-
-                with open(tlog,'r') as infile:
-                    for line in infile:
+                log = open(tlog,'r')
+                try:
+                    for line in log:
                         if not line.startswith('#'):
                             if not line.startswith('\n'):
                                 col = line.split()
-                                if col[0] == group:
-                                    group_name.append(col[0])
+                                if  col[1] == files:
+                                    file_name.append(col[1])
                                     break
                                 else:
                                     pass
+                finally:
+                    log.close()
+                
+            # Calculate time for file that hasn't been calculated before.
+            
+                if len(file_name) == 0:
+                    hdulist = fits.open(path1 + '/' + files)
+                    group = hdulist[0].header['GROUPID']
+                    exptime = hdulist[0].header['EXPTIME']
+                    instru = hdulist[0].header['INSTRUME']
+
+                    with open(tlog,'r') as infile:
+                        for line in infile:
+                            if not line.startswith('#'):
+                                if not line.startswith('\n'):
+                                    col = line.split()
+                                    if col[0] == group:
+                                        group_name.append(col[0])
+                                        break
+                                    else:
+                                        pass
                                 
                 # Calculate time for frames that belongs to a group which already
                 # exists in the log file.
                 
-                if len(group_name) == 1:
-                    if instru [0:2] == 'fl':
-                        obstime.append(float(exptime) + 2.0 + 37.0 + 1.0)
-                    elif instru [0:2] == 'kb':
-                        obstime.append(float(exptime) + 2.0 + 14.5 + 1.0)
-                    elif instru [0:2] == 'fs':
-                        obstime.append(float(exptime) + 2.0 + 10.5 + 12.0)
-                    else:
-                        pass
+                    if len(group_name) == 1:
+                        if instru [0:2] == 'fl':
+                            obstime.append(float(exptime) + 2.0 + 37.0 + 1.0)
+                        elif instru [0:2] == 'kb':
+                            obstime.append(float(exptime) + 2.0 + 14.5 + 1.0)
+                        elif instru [0:2] == 'fs':
+                            obstime.append(float(exptime) + 2.0 + 10.5 + 12.0)
+                        else:
+                            pass
                         
                 # Calculate time for frames that belongs to a group which is not in
                 # the log file yet (first appearance for a group).
                 
-                elif len(group_name) == 0:
-                    if instru [0:2] == 'fl':
-                        obstime.append(float(exptime) + 90.0 + 2.0 + 37.0 + 1.0)
-                    elif instru [0:2] == 'kb':
-                        obstime.append(float(exptime) + 90.0 + 2.0 + 14.5 + 1.0)
-                    elif instru [0:2] == 'fs':
-                        obstime.append(float(exptime) + 240.0 + 2.0 + 10.5 + 12.0)
+                    elif len(group_name) == 0:
+                        if instru [0:2] == 'fl':
+                            obstime.append(float(exptime) + 90.0 + 2.0 + 37.0 + 1.0)
+                        elif instru [0:2] == 'kb':
+                            obstime.append(float(exptime) + 90.0 + 2.0 + 14.5 + 1.0)
+                        elif instru [0:2] == 'fs':
+                            obstime.append(float(exptime) + 240.0 + 2.0 + 10.5 + 12.0)
+                        else:
+                            pass
                     else:
                         pass
-                else:
-                    pass
 
                 # Append time information to the log file for frames that make first
                 # appearance for a specific observation group.
                 
-                if len(obstime) == 1 and len(group_name) == 0:
+                    if len(obstime) == 1 and len(group_name) == 0:
 
-                    with open(dlog,'a') as outfile:
-                        outfile.write("Time calculated for new frame " + str(files) +
-                                      "." + "\n")
+                        with open(dlog,'a') as outfile:
+                            outfile.write("Time calculated for new frame " + str(files) +
+                                          "." + "\n")
                     
-                    with open(tlog, 'a') as outfile:
-                        if instru [0:2] == 'fs':
-                            outfile.write(str(group) + "     " + str(files) + "     "
-                                          + '2m0' + "     " + str(obstime[0]) + "\n")
-                        else:
-                            outfile.write(str(group) + "     " + str(files) + "     "
-                                          + '1m0' + "     " + str(obstime[0]) + "\n")
+                        with open(tlog, 'a') as outfile:
+                            if instru [0:2] == 'fs':
+                                outfile.write(str(group) + "     " + str(files) + "     "
+                                              + '2m0' + "     " + str(obstime[0]) + "\n")
+                            else:
+                                outfile.write(str(group) + "     " + str(files) + "     "
+                                              + '1m0' + "     " + str(obstime[0]) + "\n")
 
                 # Append time information to the log file for frames that belong to
                 # a specific observation group.
                 
-                elif len(obstime) == 1 and len(group_name) == 1:
+                    elif len(obstime) == 1 and len(group_name) == 1:
 
-                    with open(dlog,'a') as outfile:
-                        outfile.write("Time calculated for new frame " + str(files) +
-                                      "." + "\n")
+                        with open(dlog,'a') as outfile:
+                            outfile.write("Time calculated for new frame " + str(files) +
+                                          "." + "\n")
                     
-                    temp = open(path3 + '/temp','wb')
-                    with open (tlog,'r') as f:
-                        a = 0
-                        for line in f:
-                            if not line.startswith('#'):
-                                if not line.startswith('\n'):
-                                    col = line.split()
-                                    if col[0] == group_name[0]:
-                                        if a == 0:
-                                            if instru [0:2] == 'fs':
-                                                line = (line.strip() + "\n" + str(group)
-                                                        + "     " + str(files) + "     "
-                                                        + "2m0" + "     " +
-                                                        str(obstime[0]) + "\n")
+                        temp = open(path3 + '/temp','wb')
+                        with open (tlog,'r') as f:
+                            a = 0
+                            for line in f:
+                                if not line.startswith('#'):
+                                    if not line.startswith('\n'):
+                                        col = line.split()
+                                        if col[0] == group_name[0]:
+                                            if a == 0:
+                                                if instru [0:2] == 'fs':
+                                                    line = (line.strip() + "\n" + str(group)
+                                                            + "     " + str(files) + "     "
+                                                            + "2m0" + "     " +
+                                                            str(obstime[0]) + "\n")
+                                                else:
+                                                    line = (line.strip() + "\n" + str(group)
+                                                            + "     " + str(files) + "     "
+                                                            + "1m0" + "     " +
+                                                            str(obstime[0]) + "\n")
+                                                a = a + 1
                                             else:
-                                                line = (line.strip() + "\n" + str(group)
-                                                        + "     " + str(files) + "     "
-                                                        + "1m0" + "     " +
-                                                        str(obstime[0]) + "\n")
-                                            a = a + 1
+                                                pass
                                         else:
                                             pass
-                                    else:
-                                        pass
-                            temp.write(line)
-                    temp.close()
-                    shutil.move(path2 + '/temp',tlog)
+                                temp.write(line)
+                        temp.close()
+                        shutil.move(path2 + '/temp',tlog)
 
                 # Append comments to the log file for frames that have unknown class
                 # of instrument.
                 
-                else:
-                    with open(dlog,'a') as outfile:
-                        outfile.write("Unknown class of instrument for frame " +
-                                      str(files) + ".\n")
+                    else:
+                        with open(dlog,'a') as outfile:
+                            outfile.write("Unknown class of instrument for frame " +
+                                          str(files) + ".\n")
             
             # Append comments to the log file for frames which time has already been
             # calculated.
             
-            else:
-                with open(dlog,'a') as outfile:
-                    outfile.write("Time already calculated for " + str(files) +
-                                  "." + "\n")
+                else:
+                    with open(dlog,'a') as outfile:
+                        outfile.write("Time already calculated for " + str(files) +
+                                      "." + "\n")
         else:
             pass
 
