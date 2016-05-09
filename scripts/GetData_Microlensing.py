@@ -275,7 +275,7 @@ def Get_Data(pro_id):
         data_type = '.fits'
     elif rlevel == 'reduced':
         rlevel = '90'
-        data_type = '.fz'
+        data_type = '.fits'
     else:
         with open(dlog,'a') as outfile:
             outfile.write("Unknown data type from the configuration file. \n")
