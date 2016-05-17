@@ -614,12 +614,17 @@ def Get_Data(pro_id):
 
     for files in os.listdir(path1):
         if files.endswith(data_type):
-            if not files.endswith('cat' + data_type):
-                shutil.move(path1 + '/' + files, path4)
-            elif files.endswith('cat' + data_type):
-                shutil.move(path1 + '/' + files, path5)
-            else:
+            if os.path.isfile(path4 + '/' + files):
                 pass
+            elif os.path.isfile(path5 + '/' + files):
+                pass
+            else:
+                if not files.endswith('cat' + data_type):
+                    shutil.move(path1 + '/' + files, path4)
+                elif files.endswith('cat' + data_type):
+                    shutil.move(path1 + '/' + files, path5)
+                else:
+                    pass
 
     with open(dlog,'a') as outfile:
         outfile.write("Frames moved to output directory, ready for use.\n")
