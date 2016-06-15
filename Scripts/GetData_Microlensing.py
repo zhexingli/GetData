@@ -305,11 +305,11 @@ def Get_Data(pro_id):
         rlevel = '00'
         data_type = '.fz'
     elif rlevel == 'quicklook':
-        rlevel = '10'
-        data_type = '.fits'
+        rlevel = '11'
+        data_type = '.fz'
     elif rlevel == 'reduced':
-        rlevel = '90'
-        data_type = '.fits'
+        rlevel = '91'
+        data_type = '.fz'
     else:
         with open(dlog,'a') as outfile:
             outfile.write("Unknown data type from the configuration file. \n")
@@ -354,7 +354,7 @@ def Get_Data(pro_id):
         frames = response['results']
 
         for frame in frames:
-            if frame['filename'].endswith('cat' + data_type):
+            if frame['filename'].endswith('e' + rlevel+ '.fits' + data_type):
                 if os.path.exists(clog):
                     pass
                 else:
@@ -394,7 +394,7 @@ def Get_Data(pro_id):
                                       "exists." + "\n")
 
             elif frame['filename'].endswith(data_type):
-                if not frame['filename'].endswith('cat' + data_type):
+                if not frame['filename'].endswith('e' + rlevel+ '.fits' + data_type):
                     log = open(tlog, 'r')
                     num = []
                     try:
@@ -430,7 +430,7 @@ def Get_Data(pro_id):
         outfile.write("All frames are downloaded." + "\n")
 
     for files in os.listdir(path1):
-        if files.endswith('cat' + data_type):
+        if files.endswith('e' + rlevel+ '.fits' + data_type):
             with open(clog,'a') as outfile:
                 outfile.write(str(files) + "\n")
 
@@ -443,7 +443,7 @@ def Get_Data(pro_id):
         
         for files in os.listdir(path1):
             if files.endswith(data_type):
-                if not files.endswith('cat' + data_type):
+                if not files.endswith('e' + rlevel+ '.fits' + data_type):
                     group_name = []
                     file_name = []
                     obstime = []
@@ -614,9 +614,9 @@ def Get_Data(pro_id):
 
     for files in os.listdir(path1):
         if files.endswith(data_type):
-            if not files.endswith('cat' + data_type):
+            if not files.endswith('e' + rlevel+ '.fits' + data_type):
                 shutil.move(path1 + '/' + files, path4)
-            elif files.endswith('cat' + data_type):
+            elif files.endswith('e' + rlevel+ '.fits' + data_type):
                 shutil.move(path1 + '/' + files, path5)
             else:
                 pass
