@@ -615,9 +615,13 @@ def Get_Data(pro_id):
     for files in os.listdir(path1):
         if files.endswith(data_type):
             if not files.endswith('e' + rlevel+ '.fits' + data_type):
-                shutil.move(path1 + '/' + files, path4)
+	    	dest = os.path.join(path4, files)
+		if os.path.isfile(dest) == False
+                    shutil.move(path1 + '/' + files, path4)
             elif files.endswith('e' + rlevel+ '.fits' + data_type):
-                shutil.move(path1 + '/' + files, path5)
+	    	dest = os.path.join(path5, files)
+		if os.path.isfile(dest) == False
+                    shutil.move(path1 + '/' + files, path5)
             else:
                 pass
 
